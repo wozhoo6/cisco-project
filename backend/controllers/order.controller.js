@@ -81,22 +81,33 @@ export const createOrder = async (req, res, next) => {
 export const getStoreOrders = async (req, res, next) => {
   try {
     const storeId = req.user.id;
-    const status = req.params.status;
+    const status = req.query.status || null;
 
-    const { data: orders, error } = await supabase
+    let qry = supabase
       .from("orders")
       .select(
         `
         *,
         order_details (
           item_id,
-          quantity
+          quantity, 
+          product_details: products(
+            name, 
+            price
+          )
         )
       `,
       )
       .eq("store_id", storeId)
-      .eq("status", status)
-      .order("created_at", "ascending");
+      .order("created_at", { ascending: true });
+
+    if (status) {
+      qry = qry.eq("status", status);
+    } else {
+      qry = qry.not("status", "in", "(completed,cancelled)");
+    }
+
+    const { data: orders, error } = await qry;
 
     if (error) throw error;
 
@@ -107,8 +118,6 @@ export const getStoreOrders = async (req, res, next) => {
     next(error);
   }
 };
-
-
 
 export const updateOrderStatus = async (req, res, next) => {
   try {
@@ -140,8 +149,6 @@ export const updateOrderStatus = async (req, res, next) => {
       .maybeSingle();
 
     if (error) throw error;
-    
-    
 
     return res.status(201).json({
       success: true,
@@ -152,13 +159,10 @@ export const updateOrderStatus = async (req, res, next) => {
   }
 };
 
-
 export const getAllOrders = async (req, res, next) => {
-    try {
-        
-        const orders  = await supabase
-
-    } catch (error) {
-        next(error)
-    }
-}
+  try {
+    const orders = await supabase;
+  } catch (error) {
+    next(error);
+  }
+};

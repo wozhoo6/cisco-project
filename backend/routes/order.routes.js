@@ -12,7 +12,7 @@ const router = new Router();
 
 router.post("/", createOrder)
 
-router.get('/storeOrders/:status', protectRoute, getStoreOrders)
+router.get('/storeOrders/', protectRoute, getStoreOrders)
 router.put('/updateStatus/:orderId', protectRoute, updateOrderStatus)
 
 

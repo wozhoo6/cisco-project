@@ -115,7 +115,7 @@ export const login = async (req, res, next) => {
     setCookies(res, accessToken, refreshToken);
 
     return res.status(200).json({
-      user: data,
+      data: data,
       message: "User logged in",
     });
   } catch (error) {
