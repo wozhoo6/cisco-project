@@ -8,6 +8,7 @@ export const useUserStore = create((set, get) => ({
   loading: false,
   checkingAuth: true,
   sellers: [],
+  storeIdentifier: null,
 
   login: async (userData) => {
     set({ loading: true });
@@ -28,12 +29,14 @@ export const useUserStore = create((set, get) => ({
     }
   },
 
+
   checkAuth: async () => {
     set({ checkingAuth: true });
 
     try {
       const res = await axios.get("/auth/checkAuth");
-      set({ user: res.data.data, checkingAuth: false });
+      const identRes = await axios.get("/auth/fetchStoreIdentfier");
+      set({ user: res.data.data, storeIdentifier:res.data.data.id, checkingAuth: false });
     } catch (error) {
       set({ user: null, checkingAuth: false });
     }

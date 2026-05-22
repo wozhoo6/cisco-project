@@ -123,41 +123,61 @@ export const login = async (req, res, next) => {
   }
 };
 
-
 export const refreshAccessToken = async (req, res, next) => {
-    try {
+  try {
+    const refreshToken = req.cookies.refreshToken;
 
-        const refreshToken = req.cookies.refreshToken
+    if (!refreshToken)
+      return res.status(401).json({ message: "No refresh token provided" });
 
-        if (!refreshToken) return res.status(401).json({ message: "No refresh token provided" });
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const storedRefreshToken = await redis.get(
+      `refresh_token:${decoded.userId}`,
+    );
 
-        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
-        const storedRefreshToken = await redis.get(`refresh_token:${decoded.userId}`)
+    if (storedRefreshToken != refreshToken)
+      return res.status(401).json({ message: "Invalid refresh token." });
 
-        if (storedRefreshToken != refreshToken) return res.status(401).json({ message: "Invalid refresh token." })
+    const accessToken = jwt.sign(
+      { userId: decoded.userId },
+      process.env.ACCESS_TOKEN_SECRET,
+    );
 
-        const accessToken = jwt.sign({ userId: decoded.userId }, process.env.ACCESS_TOKEN_SECRET)
+    const TEN_YEARS = 10 * 365 * 24 * 60 * 60 * 1000;
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true, // prevent XSS attacks, cross site scripting attack
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict", // prevents CSRF attack, cross-site request forgery attack
+      maxAge: TEN_YEARS,
+    });
 
-        const TEN_YEARS = 10 * 365 * 24 * 60 * 60 * 1000;
-        res.cookie("accessToken", accessToken, {
-            httpOnly: true, // prevent XSS attacks, cross site scripting attack
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict", // prevents CSRF attack, cross-site request forgery attack
-            maxAge: TEN_YEARS,
-        });
-
-        res.send({ message: "Token refreshed succefully." })
-
-    } catch (error) {
-        console.error(error.message)
-        next(error)
-    }
-}
-
+    res.send({ message: "Token refreshed succefully." });
+  } catch (error) {
+    console.error(error.message);
+    next(error);
+  }
+};
 
 export const checkAuth = async (req, res, next) => {
   try {
     res.send({ data: req.user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchStoreIdentifier = async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from("store_identifiers")
+      .select('*')
+      .eq("store_id", req.user.id);
+
+    if (error) throw error;
+
+    res.send({
+      data: data
+    });
   } catch (error) {
     next(error);
   }

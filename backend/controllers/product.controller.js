@@ -67,7 +67,7 @@ export const createProduct = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      product,
+      data: product,
     });
   } catch (error) {
     next(error);
@@ -93,7 +93,7 @@ export const getProducts = async (req, res, next) => {
     }
 
     return res.status(201).json({
-      products,
+      data: products,
     });
   } catch (error) {
     next(error);

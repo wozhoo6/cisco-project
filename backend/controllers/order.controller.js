@@ -119,6 +119,7 @@ export const getStoreOrders = async (req, res, next) => {
   }
 };
 
+
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const orderId = req.params.orderId;

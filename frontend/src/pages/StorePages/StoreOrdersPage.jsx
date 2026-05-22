@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Coffee, Clock, CheckCircle, XCircle, Package } from 'lucide-react'
+import { QrCode, X } from 'lucide-react'
+import { QRCodeCanvas } from 'qrcode.react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
 import { useOrderStore } from '../../stores/useOrderStore'
+import { useUserStore } from '../../stores/useUserStore'
 
 const statusStyles = {
   pending: {
@@ -40,11 +43,11 @@ const statusIcons = {
   cancelled: XCircle
 }
 
-const activeStatusOrder = ['pending', 'paid', 'preparing', 'ready']
+const activeStatusOrder = ['ready', 'pending', 'paid', 'preparing']
 const archiveStatusOrder = ['completed', 'cancelled']
 const viewOptions = ['active', ...archiveStatusOrder]
 
-const renderOrderCard = (order, handleUpdateOrder) => {
+const renderOrderCard = (order, handleUpdateOrder, handleCancelOrder) => {
   const Icon = statusIcons[order.status]
   const isLate =
     order.status === 'pending' &&
@@ -108,12 +111,21 @@ const renderOrderCard = (order, handleUpdateOrder) => {
         <span className='font-bold text-sm text-[#7B4A2E]'>₱{order.total}</span>
         <div className='flex gap-1'>
           {order.status === 'pending' && (
-            <button
-              onClick={() => handleUpdateOrder(order)}
-              className='bg-blue-500 text-white px-2 py-0.5 rounded text-[10px]'
-            >
-              Accept
-            </button>
+            <div className='flex gap-2'>
+              <button
+                onClick={() => handleUpdateOrder(order)}
+                className='bg-blue-500 text-white px-2 py-0.5 rounded text-[10px]'
+              >
+                Accept
+              </button>
+
+              <button
+                onClick={() => handleCancelOrder(order)}
+                className='bg-red-500 text-white px-2 py-0.5 rounded text-[10px]'
+              >
+                Cancel
+              </button>
+            </div>
           )}
 
           {order.status === 'paid' && (
@@ -150,6 +162,7 @@ const renderOrderCard = (order, handleUpdateOrder) => {
 
 const StoreOrdersPage = () => {
   const [selectedView, setSelectedView] = useState('active')
+  const [showQr, setShowQr] = useState(false)
 
   const {
     orders,
@@ -158,20 +171,39 @@ const StoreOrdersPage = () => {
     subscribeToOrders,
     unsubscribeFromOrders,
     updateOrderStatus,
+    getOrderByStatus
   } = useOrderStore()
 
-  const handleUpdateOrder = async (order) => {
+  const { storeIdentifier } = useUserStore()
+
+  const handleUpdateOrder = async order => {
     const nextStatusMap = {
       pending: 'paid',
       paid: 'preparing',
       preparing: 'ready',
-      ready: 'completed',
+      ready: 'completed'
     }
 
     const nextStatus = nextStatusMap[order.status]
     if (!nextStatus) return
 
     await updateOrderStatus(order.order_id, nextStatus)
+  }
+
+  const handleCancelOrder = async order => {
+    await updateOrderStatus(order.order_id, 'cancelled')
+  }
+
+  const handleChangeSelectedView = async viewOption => {
+    if (viewOption === 'active') {
+      await getActiveOrders()
+      setSelectedView(viewOption)
+      return
+    }
+
+    await getOrderByStatus(viewOption)
+    setSelectedView(viewOption)
+    return
   }
 
   useEffect(() => {
@@ -212,7 +244,9 @@ const StoreOrdersPage = () => {
         </div>
 
         <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-          {statusOrders.map((order) => renderOrderCard(order, handleUpdateOrder))}
+          {statusOrders.map(order =>
+            renderOrderCard(order, handleUpdateOrder, handleCancelOrder)
+          )}
         </div>
       </div>
     )
@@ -221,21 +255,33 @@ const StoreOrdersPage = () => {
   return (
     <div className='p-6 bg-gray-50 min-h-screen'>
       <header className='flex items-center justify-between mb-4'>
-        <h1 className='text-2xl font-bold text-[#7B4A2E]'>Orders</h1>
+        <h1 className='text-2xl font-bold text-[#7B4A2E]'>
+          {selectedView.charAt(0).toUpperCase() + selectedView.slice(1)} Orders
+        </h1>
         <div className='flex gap-2'>
-          {viewOptions.map(v => (
+          <div className='flex gap-2 items-center'>
+            {viewOptions.map(v => (
+              <button
+                key={v}
+                onClick={() => handleChangeSelectedView(v)}
+                className={`px-3 py-1 rounded-full text-sm capitalize border ${
+                  selectedView === v
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'bg-white text-gray-700 border-gray-200'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+
+            {/* QR BUTTON */}
             <button
-              key={v}
-              onClick={() => setSelectedView(v)}
-              className={`px-3 py-1 rounded-full text-sm capitalize border ${
-                selectedView === v
-                  ? 'bg-amber-600 text-white border-amber-600'
-                  : 'bg-white text-gray-700 border-gray-200'
-              }`}
+              onClick={() => setShowQr(true)}
+              className='bg-[#7B4A2E] text-white p-2 rounded-md'
             >
-              {v}
+              <QrCode size={16} />
             </button>
-          ))}
+          </div>
         </div>
       </header>
 
@@ -246,6 +292,42 @@ const StoreOrdersPage = () => {
           <p className='text-gray-500'>No orders to display.</p>
         )}
       </main>
+
+      {showQr && (
+        <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white w-full max-w-sm rounded-2xl p-5 relative'>
+            <button
+              onClick={() => setShowQr(false)}
+              className='absolute top-3 right-3 text-gray-500'
+            >
+              <X size={20} />
+            </button>
+
+            <h2 className='text-lg font-bold text-center text-[#7B4A2E]'>
+              Menu QR Code
+            </h2>
+
+            <p className='text-xs text-gray-500 text-center mb-4'>
+              Scan to open store menu
+            </p>
+
+            <div className='flex justify-center'>
+              <QRCodeCanvas
+                value={`http://192.168.8.3:5173/menu/${storestoId}`}
+                size={220}
+                fgColor='#7B4A2E'
+                bgColor='#ffffff'
+                level='H'
+                includeMargin
+              />
+            </div>
+
+            <p className='text-xs text-center text-gray-500 mt-4'>
+              http://192.168.8.3:5173/menu/{storeIdentifier}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

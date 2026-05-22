@@ -24,15 +24,29 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  updateOrderStatus: async (orderId, status) => {
+  getOrderByStatus: async (status) => {
+    set({ loading: true });
 
+    try {
+      const res = await axios.get(`/order/storeOrders/?status=${status}`);
+      set({ orders: res.data.data });
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message || error?.message || "An error occurred";
+      toast.error(msg);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  updateOrderStatus: async (orderId, status) => {
     try {
       await axios.put(`/order/updateStatus/${orderId}`, { status });
     } catch (error) {
       const msg =
         error?.response?.data?.message || error?.message || "An error occurred";
       toast.error(msg);
-    } 
+    }
   },
 
   subscribeToOrders: () => {
@@ -95,7 +109,6 @@ export const useOrderStore = create((set, get) => ({
                 : order,
             ),
           }));
-          toast.success("Order updated");
           return;
         }
 
