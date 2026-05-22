@@ -159,6 +159,37 @@ export const updateOrderStatus = async (req, res, next) => {
   }
 };
 
+export const getOrderDetails = async (req, res, next) => {
+  try {
+    const orderId = req.params.orderId;
+
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select(
+        `
+        *,
+        order_details (
+          item_id,
+          quantity, 
+          product_details: products(
+            name, 
+            price
+          )
+        )
+      `,
+      )
+      .eq("order_id", orderId);
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      data: order || [],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAllOrders = async (req, res, next) => {
   try {
     const orders = await supabase;
