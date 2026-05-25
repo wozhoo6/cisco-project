@@ -164,6 +164,8 @@ const StoreOrdersPage = () => {
   const [selectedView, setSelectedView] = useState('active')
   const [showQr, setShowQr] = useState(false)
 
+  const [overdueOrder, setOverdueOrder] = useState(null)
+
   const {
     orders,
     getActiveOrders,
@@ -175,6 +177,13 @@ const StoreOrdersPage = () => {
   } = useOrderStore()
 
   const { storeIdentifier } = useUserStore()
+
+  const isOverdue = order => {
+    return (
+      order.status === 'pending' &&
+      new Date() - new Date(order.created_at) > 15 * 60 * 1000
+    )
+  }
 
   const handleUpdateOrder = async order => {
     const nextStatusMap = {
@@ -191,6 +200,16 @@ const StoreOrdersPage = () => {
   }
 
   const handleCancelOrder = async order => {
+    const overdue = isOverdue(order)
+
+    if (overdue) {
+      const confirmCancel = window.confirm(
+        `This order (${order.display_id}) has been pending for over 15 minutes.\n\nDo you still want to cancel it?`
+      )
+
+      if (!confirmCancel) return
+    }
+
     await updateOrderStatus(order.order_id, 'cancelled')
   }
 
@@ -214,6 +233,26 @@ const StoreOrdersPage = () => {
       unsubscribeFromOrders()
     }
   }, [])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!orders?.length) return
+
+      const overdue = orders.find(order => {
+        const isPending = order.status === 'pending'
+        const isOver15Min =
+          new Date() - new Date(order.created_at) > 15 * 60 * 1000
+
+        return isPending && isOver15Min
+      })
+
+      if (overdue) {
+        setOverdueOrder(overdue)
+      }
+    }, 5000) // check every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [orders])
 
   if (loading) return <LoadingSpinner />
 
@@ -313,7 +352,7 @@ const StoreOrdersPage = () => {
 
             <div className='flex justify-center'>
               <QRCodeCanvas
-                value={`http://192.168.8.3:5173/menu/${storestoId}`}
+                value={`http://192.168.8.15:5173/menu/${storeIdentifier}`}
                 size={220}
                 fgColor='#7B4A2E'
                 bgColor='#ffffff'
@@ -323,8 +362,46 @@ const StoreOrdersPage = () => {
             </div>
 
             <p className='text-xs text-center text-gray-500 mt-4'>
-              http://192.168.8.3:5173/menu/{storeIdentifier}
+              http://192.168.8.15:5173/menu/{storeIdentifier}
             </p>
+          </div>
+        </div>
+      )}
+
+      {overdueOrder && (
+        <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white w-full max-w-sm rounded-2xl p-5 text-center shadow-xl'>
+            <h2 className='text-xl font-bold text-red-600 mb-2'>
+              ⚠ Overdue Order
+            </h2>
+
+            <p className='text-sm text-gray-600 mb-4'>
+              Order <b>{overdueOrder.display_id}</b> has been pending for over
+              15 minutes.
+            </p>
+
+            <p className='text-xs text-gray-500 mb-6'>
+              Do you want to cancel this order?
+            </p>
+
+            <div className='flex gap-2'>
+              <button
+                onClick={() => setOverdueOrder(null)}
+                className='flex-1 border py-2 rounded-lg'
+              >
+                Keep
+              </button>
+
+              <button
+                onClick={async () => {
+                  await updateOrderStatus(overdueOrder.order_id, 'cancelled')
+                  setOverdueOrder(null)
+                }}
+                className='flex-1 bg-red-600 text-white py-2 rounded-lg'
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

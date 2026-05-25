@@ -8,11 +8,19 @@ const ItemPage = () => {
   const { fetchProducts, products, loading } = useProductStore()
   const { storeId } = useParams()
 
-  const [cart, setCart] = useState([])
+  const [cart, setCart] = useState(() => {
+    const savedCart = localStorage.getItem('cart')
+
+    return savedCart ? JSON.parse(savedCart) : []
+  })
 
   useEffect(() => {
     fetchProducts()
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cart))
+  }, [cart])
 
   const handleAddToCart = product => {
     setCart(prev => {
@@ -52,11 +60,7 @@ const ItemPage = () => {
 
         {/* NAVIGATE TO CART */}
         <button
-          onClick={() =>
-            navigate(`/cart/${storeId}`, {
-              state: { cart }
-            })
-          }
+          onClick={() => navigate(`/cart/${storeId}`)}
           className='relative bg-[#7B4A2E] text-white p-3 rounded-full shadow-md'
         >
           <ShoppingCart size={20} />
@@ -72,41 +76,64 @@ const ItemPage = () => {
       {/* PRODUCTS */}
       <main className='max-w-6xl mx-auto p-4'>
         <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4'>
-          {products.map(product => (
-            <div
-              key={product.product_id}
-              className='bg-white rounded-2xl overflow-hidden shadow-sm border hover:shadow-md transition'
-            >
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className='w-full h-48 object-cover'
-              />
+          <div className='flex flex-col gap-8'>
+            {products?.map(category => (
+              <section key={category.category_id}>
+                {/* CATEGORY TITLE */}
+                <h2 className='text-xl font-bold text-[#7B4A2E] mb-4'>
+                  {category.category_name}
+                </h2>
 
-              <div className='p-4'>
-                <div className='flex items-start justify-between gap-3'>
-                  <div>
-                    <h2 className='font-bold text-[#7B4A2E]'>{product.name}</h2>
+                {/* PRODUCTS GRID */}
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
+                  {category.products.map(product => (
+                    <div
+                      key={product.product_id}
+                      className='bg-white rounded-2xl overflow-hidden shadow-sm border hover:shadow-md transition flex flex-col'
+                    >
+                      {/* IMAGE */}
+                      <div className='h-44 bg-gray-100'>
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className='w-full h-full object-cover'
+                          />
+                        ) : (
+                          <div className='flex items-center justify-center h-full text-gray-400 text-sm'>
+                            No image
+                          </div>
+                        )}
+                      </div>
 
-                    <p className='text-sm text-gray-500 mt-1'>
-                      {product.description}
-                    </p>
-                  </div>
+                      {/* CONTENT */}
+                      <div className='p-4 flex flex-col flex-1'>
+                        <div className='flex justify-between items-start'>
+                          <h3 className='font-semibold text-[#7B4A2E]'>
+                            {product.name}
+                          </h3>
+                          <span className='font-bold text-[#7B4A2E]'>
+                            ₱{product.price}
+                          </span>
+                        </div>
 
-                  <span className='font-bold text-[#7B4A2E]'>
-                    ₱{product.price}
-                  </span>
+                        <p className='text-sm text-gray-500 mt-1 flex-1'>
+                          {product.description || 'No description'}
+                        </p>
+
+                        <button
+                          onClick={() => handleAddToCart(product)}
+                          className='mt-4 bg-[#7B4A2E] hover:bg-[#623923] text-white py-2 rounded-xl text-sm font-medium transition'
+                        >
+                          Add to Cart
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-
-                <button
-                  onClick={() => handleAddToCart(product)}
-                  className='w-full mt-4 bg-[#7B4A2E] hover:bg-[#623923] text-white py-2.5 rounded-xl text-sm font-medium transition'
-                >
-                  Add to Cart
-                </button>
-              </div>
-            </div>
-          ))}
+              </section>
+            ))}
+          </div>
         </div>
       </main>
 

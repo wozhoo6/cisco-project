@@ -18,22 +18,20 @@ const storeRefreshToken = async (userId, refreshToken) => {
   await redis.set(`refresh_token:${userId}`, refreshToken);
 };
 
-const setCookies = async (res, accessToken, refreshToken) => {
+const setCookies = (res, accessToken, refreshToken) => {
   const TEN_YEARS = 10 * 365 * 24 * 60 * 60 * 1000;
 
-  res.cookie("accessToken", accessToken, {
-    httpOnly: true, // prevent XSS attacks, cross site scripting attack
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", // prevents CSRF attack, cross-site request forgery attack
+  const options = {
+    httpOnly: true,
+    secure: false, // ✅ dev only
+    sameSite: "lax", // ✅ works on HTTP
     maxAge: TEN_YEARS,
-  });
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true, // prevent XSS attacks, cross site scripting attack
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", // prevents CSRF attack, cross-site request forgery attack
-    maxAge: TEN_YEARS,
-  });
+  };
+
+  res.cookie("accessToken", accessToken, options);
+  res.cookie("refreshToken", refreshToken, options);
 };
+
 
 export const createStore = async (req, res, next) => {
   try {
@@ -170,13 +168,13 @@ export const fetchStoreIdentifier = async (req, res, next) => {
   try {
     const { data, error } = await supabase
       .from("store_identifiers")
-      .select('*')
+      .select("*")
       .eq("store_id", req.user.id);
 
     if (error) throw error;
 
     res.send({
-      data: data
+      data: data,
     });
   } catch (error) {
     next(error);

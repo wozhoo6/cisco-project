@@ -49,9 +49,28 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
-  subscribeToOrders: () => {
+  placeOrder: async (orderData) => {
+    set({ loading: true });
+
+    try {
+      const res = await axios.post("/order", orderData);
+      return res.data;
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message || error?.message || "An error occurred";
+      toast.error(msg);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  subscribeToOrders: async () => {
     const user = useUserStore.getState().user;
     const storeId = user?.id;
+
+    const identRes = await axios.get("/auth/fetchStoreIdentfier");
+
+    const storeIdentfier = identRes.data.data[0].id;
 
     const options = {
       event: "*",
@@ -60,7 +79,7 @@ export const useOrderStore = create((set, get) => ({
     };
 
     if (storeId) {
-      options.filter = `store_id=eq.${storeId}`;
+      options.filter = `store_id=eq.${storeIdentfier}`;
     }
 
     const channel = supabase
@@ -69,6 +88,7 @@ export const useOrderStore = create((set, get) => ({
         const eventType = payload.eventType || payload.event || payload.type;
         const newRow = payload.new;
         const oldRow = payload.old;
+
 
         if (eventType === "INSERT") {
           if (!newRow) return;

@@ -83,6 +83,15 @@ export const getStoreOrders = async (req, res, next) => {
     const storeId = req.user.id;
     const status = req.query.status || null;
 
+    const { data: storeIdentifierRes, error: storeIdentError } = await supabase
+      .from("store_identifiers")
+      .select("id")
+      .eq("store_id", storeId)
+
+    if (storeIdentError) throw error;
+
+    const storeIdentifier = storeIdentifierRes[0].id;
+
     let qry = supabase
       .from("orders")
       .select(
@@ -98,7 +107,7 @@ export const getStoreOrders = async (req, res, next) => {
         )
       `,
       )
-      .eq("store_id", storeId)
+      .eq("store_id", storeIdentifier)
       .order("created_at", { ascending: true });
 
     if (status) {
@@ -118,7 +127,6 @@ export const getStoreOrders = async (req, res, next) => {
     next(error);
   }
 };
-
 
 export const updateOrderStatus = async (req, res, next) => {
   try {

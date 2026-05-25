@@ -8,8 +8,9 @@ import LoadingSpinner from './components/LoadingSpinner'
 import { useUserStore } from './stores/useUserStore'
 
 // MENU PAGES
-import ItemPage from './pages/MenuPages/ItemPage'
-import CartPage from './pages/MenuPages/CartPage'
+import ItemPage from './pages/CustomerPages/ItemPage'
+import CartPage from './pages/CustomerPages/CartPage'
+import ConfirmationPage from './pages/CustomerPages/ConfirmationPage'
 
 import LoginPage from './pages/StorePages/LoginPage'
 
@@ -53,6 +54,8 @@ function App () {
 
       <Route path='/menu/:storeId' element={<ItemPage />} />
       <Route path='/cart/:storeId' element={<CartPage />} />
+      <Route path='/confirmation/:storeId/:orderId' element={<ConfirmationPage />} />
+
     </Routes>
   )
 }

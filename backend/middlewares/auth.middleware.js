@@ -6,6 +6,7 @@ export const protectRoute = async (req, res, next) => {
   try {
     let accessToken = req.cookies.accessToken;
 
+
     if (!accessToken) {
       return res.status(401).json({ message: "Unauthorized - No token" });
     }
@@ -89,6 +90,8 @@ export const protectRoute = async (req, res, next) => {
 };
 
 export const adminRoute = async (req, res, next) => {
+  console.log(req.user)
+
   if (req.user && req.user.role === "admin") next();
   else return res.status(403).json({ message: "Requires admin account" });
 };

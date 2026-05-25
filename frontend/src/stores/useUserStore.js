@@ -36,7 +36,7 @@ export const useUserStore = create((set, get) => ({
     try {
       const res = await axios.get("/auth/checkAuth");
       const identRes = await axios.get("/auth/fetchStoreIdentfier");
-      set({ user: res.data.data, storeIdentifier:res.data.data.id, checkingAuth: false });
+      set({ user: res.data.data, storeIdentifier:identRes.data.data[0].id, checkingAuth: false });
     } catch (error) {
       set({ user: null, checkingAuth: false });
     }

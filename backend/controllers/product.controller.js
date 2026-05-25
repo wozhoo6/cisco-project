@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, status } = req.body;
+    const { name, description, price, status, category } = req.body;
 
     let image_url = null;
 
@@ -36,6 +36,7 @@ export const createProduct = async (req, res, next) => {
           name,
           description,
           price: parseFloat(price),
+          category,
           image_url,
           status: status || "active",
         },
@@ -80,19 +81,34 @@ export const getProducts = async (req, res, next) => {
     let products = [];
 
     if (!cachedProducts) {
-      const dbProducts = await supabase
-        .from("products")
-        .select("*")
-        .eq("status", "active");
+      const { data, error } = await supabase
+        .from("categories")
+        .select(
+          `
+          category_id,
+          category_name,
+          products (
+            product_id,
+            name,
+            price,
+            image_url,
+            description
+          )
+        `,
+        )
+        .eq("is_active", true);
 
-      await redis.set("products", JSON.stringify(dbProducts.data));
+      if (error) throw error;
 
-      products = dbProducts.data;
+      products = data.filter((c) => c.products && c.products.length > 0);
+
+      // cache it
+      await redis.set("products", JSON.stringify(products));
     } else {
       products = JSON.parse(cachedProducts);
     }
 
-    return res.status(201).json({
+    return res.status(200).json({
       data: products,
     });
   } catch (error) {
@@ -140,10 +156,10 @@ export const editProduct = async (req, res, next) => {
   try {
     const productId = req.params.product_id;
 
-    const updateData = {...req.body}
+    const updateData = { ...req.body };
 
     if (updateData.price) {
-        updateData.price = parseFloat(updateData.price)
+      updateData.price = parseFloat(updateData.price);
     }
 
     const { data: updatedProduct, error } = await supabase

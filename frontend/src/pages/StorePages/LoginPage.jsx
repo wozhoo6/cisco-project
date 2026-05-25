@@ -4,7 +4,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 
 const LoginPage = () => {
-  const { login } = useUserStore()
+  const { login, loading } = useUserStore()
 
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
@@ -83,6 +83,7 @@ const LoginPage = () => {
 
           {/* Login Button */}
           <button
+          disable={loading}
             type='submit'
             className='w-full bg-[#7B4A2E] text-white py-2 rounded-lg hover:bg-[#5e3821] transition'
           >
