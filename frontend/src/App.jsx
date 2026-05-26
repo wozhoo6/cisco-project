@@ -4,6 +4,8 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 
 import LoadingSpinner from './components/LoadingSpinner'
 
+import LoginPage from './pages/StorePages/LoginPage'
+
 // STORE PAGES
 import { useUserStore } from './stores/useUserStore'
 
@@ -12,10 +14,12 @@ import ItemPage from './pages/CustomerPages/ItemPage'
 import CartPage from './pages/CustomerPages/CartPage'
 import ConfirmationPage from './pages/CustomerPages/ConfirmationPage'
 
-import LoginPage from './pages/StorePages/LoginPage'
-
 // Store Pages
 import StoreOrdersPage from './pages/StorePages/StoreOrdersPage'
+
+// Admin Pages
+
+import AdminLayout from './pages/AdminPages.jsx/AdminHomePage'
 
 function App () {
   const { user, checkAuth, checkingAuth } = useUserStore()
@@ -23,6 +27,7 @@ function App () {
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
+
 
   if (checkingAuth) return <LoadingSpinner />
   return (
@@ -33,11 +38,13 @@ function App () {
           user ? (
             user.role === 'store' ? (
               <Navigate to='/orders' />
+            ) : user.role === 'admin' ? (
+              <Navigate to='/admin' />
             ) : (
               <Navigate to='/login' />
             )
           ) : (
-            <LoginPage />
+            <Navigate to='/login' />
           )
         }
       />
@@ -52,10 +59,23 @@ function App () {
         element={!user ? <Navigate to='/login' /> : <StoreOrdersPage />}
       />
 
+      <Route
+        path='/admin'
+        element={
+          user && user.role == 'admin' ? (
+            <AdminLayout />
+          ) : (
+            <Navigate to='/login' />
+          )
+        }
+      />
+
       <Route path='/menu/:storeId' element={<ItemPage />} />
       <Route path='/cart/:storeId' element={<CartPage />} />
-      <Route path='/confirmation/:storeId/:orderId' element={<ConfirmationPage />} />
-
+      <Route
+        path='/confirmation/:storeId/:orderId'
+        element={<ConfirmationPage />}
+      />
     </Routes>
   )
 }

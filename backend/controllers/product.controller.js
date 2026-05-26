@@ -96,14 +96,14 @@ export const getProducts = async (req, res, next) => {
           )
         `,
         )
-        .eq("is_active", true);
+        .eq("is_active", true);         
 
       if (error) throw error;
 
       products = data.filter((c) => c.products && c.products.length > 0);
 
       // cache it
-      await redis.set("products", JSON.stringify(products));
+      await redis.set("products:all", JSON.stringify(products));
     } else {
       products = JSON.parse(cachedProducts);
     }
@@ -140,7 +140,8 @@ export const deleteProduct = async (req, res, next) => {
       });
     }
 
-    await redis.del("products");
+    await redis.del("products:featured");
+    await redis.del("products:all");
 
     return res.status(200).json({
       success: true,
@@ -181,12 +182,81 @@ export const editProduct = async (req, res, next) => {
       });
     }
 
-    await redis.del("products");
+    await redis.del("products:featured");
+    await redis.del("products:all");
 
     return res.status(200).json({
       success: true,
       message: "Product archived successfully",
       product: updatedProduct,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getFeaturedProducts = async (req, res, next) => {
+  try {
+    const cached = await redis.get("products:featured");
+
+    if (cached) {
+      return res.status(200).json({
+        success: true,
+        data: JSON.parse(cached),
+        source: "cache",
+      });
+    }
+
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_featured", true);
+
+       
+    if (error) throw error;
+
+    await redis.set("products:featured", JSON.stringify(data));
+
+    return res.status(200).json({
+      success: true,
+      data,
+      source: "db",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setFeaturedProduct = async (req, res, next) => {
+  try {
+    const productId = req.params.product_id;
+
+    const { data: product, error: fetchError } = await supabase
+      .from("products")
+      .select("is_featured")
+      .eq("product_id", productId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const newValue = !product.is_featured;
+
+    const { data: updatedProduct, error } = await supabase
+      .from("products")
+      .update({ is_featured: newValue })
+      .eq("product_id", productId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await redis.del("products:featured");
+    await redis.del("products:all");
+
+    res.status(200).json({
+      success: true,
+      data: updatedProduct,
     });
   } catch (error) {
     next(error);

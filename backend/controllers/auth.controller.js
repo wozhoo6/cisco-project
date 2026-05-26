@@ -32,7 +32,6 @@ const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("refreshToken", refreshToken, options);
 };
 
-
 export const createStore = async (req, res, next) => {
   try {
     const { username, password, address = null } = req.body;
@@ -117,6 +116,28 @@ export const login = async (req, res, next) => {
       message: "User logged in",
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    const refreshToken = res.cookie.refreshToken;
+
+    if (refreshToken) {
+      const decoded = jwt.verify(
+        refreshToken,
+        process.env.REFRESH_TOKEN_SECRET,
+      );
+      await redis.del(`refresh_token:${decoded.userId}`);
+    }
+
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+
+    res.send({ message: "User logged out successfully." });
+  } catch (error) {
+    console.error(error.message);
     next(error);
   }
 };

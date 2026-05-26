@@ -176,7 +176,7 @@ const StoreOrdersPage = () => {
     getOrderByStatus
   } = useOrderStore()
 
-  const { storeIdentifier } = useUserStore()
+  const { storeIdentifier, logout } = useUserStore()
 
   const isOverdue = order => {
     return (
@@ -211,6 +211,13 @@ const StoreOrdersPage = () => {
     }
 
     await updateOrderStatus(order.order_id, 'cancelled')
+  }
+
+  const handleLogout = async () => {
+    const confirmLogout = window.confirm('Are you sure you want to logout?')
+    if (!confirmLogout) return
+
+    await logout()
   }
 
   const handleChangeSelectedView = async viewOption => {
@@ -297,33 +304,40 @@ const StoreOrdersPage = () => {
         <h1 className='text-2xl font-bold text-[#7B4A2E]'>
           {selectedView.charAt(0).toUpperCase() + selectedView.slice(1)} Orders
         </h1>
-        <div className='flex gap-2'>
-          <div className='flex gap-2 items-center'>
-            {viewOptions.map(v => (
-              <button
-                key={v}
-                onClick={() => handleChangeSelectedView(v)}
-                className={`px-3 py-1 rounded-full text-sm capitalize border ${
-                  selectedView === v
-                    ? 'bg-amber-600 text-white border-amber-600'
-                    : 'bg-white text-gray-700 border-gray-200'
-                }`}
-              >
-                {v}
-              </button>
-            ))}
 
-            {/* QR BUTTON */}
+        <div className='flex gap-2 items-center'>
+          {viewOptions.map(v => (
             <button
-              onClick={() => setShowQr(true)}
-              className='bg-[#7B4A2E] text-white p-2 rounded-md'
+              key={v}
+              onClick={() => handleChangeSelectedView(v)}
+              className={`px-3 py-1 rounded-full text-sm capitalize border ${
+                selectedView === v
+                  ? 'bg-amber-600 text-white border-amber-600'
+                  : 'bg-white text-gray-700 border-gray-200'
+              }`}
             >
-              <QrCode size={16} />
+              {v}
             </button>
-          </div>
+          ))}
+
+          {/* QR BUTTON */}
+          <button
+            onClick={() => setShowQr(true)}
+            className='bg-[#7B4A2E] text-white p-2 rounded-md'
+          >
+            <QrCode size={16} />
+          </button>
+
+          {/* ✅ LOGOUT BUTTON */}
+          <button
+            onClick={handleLogout}
+            className='bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600'
+          >
+            Logout
+          </button>
         </div>
       </header>
-
+      
       <main>
         {visibleStatusOrder.map(renderStatusSection)}
 
@@ -331,7 +345,6 @@ const StoreOrdersPage = () => {
           <p className='text-gray-500'>No orders to display.</p>
         )}
       </main>
-
       {showQr && (
         <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4'>
           <div className='bg-white w-full max-w-sm rounded-2xl p-5 relative'>
@@ -367,7 +380,6 @@ const StoreOrdersPage = () => {
           </div>
         </div>
       )}
-
       {overdueOrder && (
         <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4'>
           <div className='bg-white w-full max-w-sm rounded-2xl p-5 text-center shadow-xl'>

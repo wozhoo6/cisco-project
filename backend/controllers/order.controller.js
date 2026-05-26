@@ -86,7 +86,7 @@ export const getStoreOrders = async (req, res, next) => {
     const { data: storeIdentifierRes, error: storeIdentError } = await supabase
       .from("store_identifiers")
       .select("id")
-      .eq("store_id", storeId)
+      .eq("store_id", storeId);
 
     if (storeIdentError) throw error;
 
@@ -201,7 +201,106 @@ export const getOrderDetails = async (req, res, next) => {
 
 export const getAllOrders = async (req, res, next) => {
   try {
-    const orders = await supabase;
+    const filters = req.query;
+
+    let query = supabase.from("orders").select(`
+    *,
+    store_name:store_identifiers (
+      user:users (
+        username
+      )
+    )
+  `);
+
+    // ✅ Apply filters dynamically
+    if (filters.status) {
+      query = query.eq("status", filters.status);
+    }
+
+    if (filters.store_id) {
+      query = query.eq("store_id", filters.store_id);
+    }
+
+    if (filters.customer_name) {
+      query = query.ilike("customer_name", `%${filters.customer_name}%`);
+    }
+
+    if (filters.from_date) {
+      const fromDate = new Date(filters.from_date);
+      fromDate.setHours(0, 0, 0, 0);
+
+      query = query.gte("created_at", fromDate.toISOString());
+    }
+
+    if (filters.to_date) {
+      const toDate = new Date(filters.to_date);
+      toDate.setHours(23, 59, 59, 999);
+
+      query = query.lte("created_at", toDate.toISOString());
+    }
+
+    // Pagination
+
+    const limit = filters.limit ? parseInt(filters.limit) : 10;
+    const offset = filters.offset ? parseInt(filters.offset) : 0;
+
+    query = query.range(offset, offset + limit - 1);
+
+    query = query.order("created_at", { ascending: false });
+
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
+
+    if (error) throw error;
+
+    res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTotalStatusCounts = async (req, res, next) => {
+  try {
+    const filters = req.query;
+
+    let query = supabase.from("orders").select("status", { count: "exact" });
+
+    if (filters.store_id) {
+      query = query.eq("store_id", filters.store_id);
+    }
+
+    if (filters.from_date) {
+      const fromDate = new Date(filters.from_date);
+      fromDate.setHours(0, 0, 0, 0);
+
+      query = query.gte("created_at", fromDate.toISOString());
+    }
+
+    if (filters.to_date) {
+      const toDate = new Date(filters.to_date);
+      toDate.setHours(23, 59, 59, 999);
+
+      query = query.lte("created_at", toDate.toISOString());
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const counts = data.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    res.status(200).json({
+      success: true,
+      data: counts,
+    });
   } catch (error) {
     next(error);
   }

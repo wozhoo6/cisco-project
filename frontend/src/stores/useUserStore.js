@@ -29,16 +29,34 @@ export const useUserStore = create((set, get) => ({
     }
   },
 
-
+  logout: async () => {
+    await axios.post("/auth/logout");
+    set({ user: null });
+  },
+  
   checkAuth: async () => {
     set({ checkingAuth: true });
 
     try {
       const res = await axios.get("/auth/checkAuth");
-      const identRes = await axios.get("/auth/fetchStoreIdentfier");
-      set({ user: res.data.data, storeIdentifier:identRes.data.data[0].id, checkingAuth: false });
+
+      let storeIdentifier = null;
+
+      try {
+        const identRes = await axios.get("/auth/fetchStoreIdentfier");
+        storeIdentifier = identRes.data.data[0].id;
+      } catch (err) {
+        console.log("Store identifier failed", err);
+      }
+
+      set({
+        user: res.data.data,
+        storeIdentifier,
+      });
     } catch (error) {
-      set({ user: null, checkingAuth: false });
+      set({ user: null });
+    } finally {
+      set({ checkingAuth: false });
     }
   },
 
