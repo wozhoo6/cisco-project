@@ -18,8 +18,8 @@ import ConfirmationPage from './pages/CustomerPages/ConfirmationPage'
 import StoreOrdersPage from './pages/StorePages/StoreOrdersPage'
 
 // Admin Pages
-
-import AdminLayout from './pages/AdminPages.jsx/AdminHomePage'
+import AdminLayout from './pages/AdminPages.jsx/AdminLayout'
+import AdminDashboard from './pages/AdminPages.jsx/AdminDashboard'
 
 function App () {
   const { user, checkAuth, checkingAuth } = useUserStore()
@@ -27,7 +27,6 @@ function App () {
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
-
 
   if (checkingAuth) return <LoadingSpinner />
   return (
@@ -59,23 +58,31 @@ function App () {
         element={!user ? <Navigate to='/login' /> : <StoreOrdersPage />}
       />
 
-      <Route
-        path='/admin'
-        element={
-          user && user.role == 'admin' ? (
-            <AdminLayout />
-          ) : (
-            <Navigate to='/login' />
-          )
-        }
-      />
-
       <Route path='/menu/:storeId' element={<ItemPage />} />
       <Route path='/cart/:storeId' element={<CartPage />} />
       <Route
         path='/confirmation/:storeId/:orderId'
         element={<ConfirmationPage />}
       />
+
+      {/* ADMIN ROUTE */}
+      <Route
+        path='/admin'
+        element={
+          user && user.role === 'admin' ? (
+            <AdminLayout />
+          ) : (
+            <Navigate to='/login' />
+          )
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        {/* <Route path='products' element={<AdminProducts />} />
+        <Route path='orders' element={<AdminOrders />} />
+        <Route path='customers' element={<AdminCustomers />} />
+        <Route path='settings' element={<AdminSettings />} /> */}
+      </Route>
+
     </Routes>
   )
 }

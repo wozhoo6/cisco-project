@@ -8,6 +8,7 @@ export const useOrderStore = create((set, get) => ({
   loading: false,
   orders: [],
   channel: null,
+  statusCount: {},
 
   getActiveOrders: async () => {
     set({ loading: true });
@@ -64,6 +65,34 @@ export const useOrderStore = create((set, get) => ({
     }
   },
 
+  getAllOrders: async (filters = {}) => {
+    set({ loading: true });
+
+    try {
+      const params = new URLSearchParams();
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          params.append(key, value);
+        }
+      });
+
+      const res = await axios.get(`/order/getAllOrders?${params.toString()}`);
+
+      set({
+        orders: res.data.orders,
+        statusCount: res.data.statusCounts,
+      });
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message || error?.message || "An error occurred";
+
+      toast.error(msg);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
   subscribeToOrders: async () => {
     const user = useUserStore.getState().user;
     const storeId = user?.id;
@@ -88,7 +117,6 @@ export const useOrderStore = create((set, get) => ({
         const eventType = payload.eventType || payload.event || payload.type;
         const newRow = payload.new;
         const oldRow = payload.old;
-
 
         if (eventType === "INSERT") {
           if (!newRow) return;

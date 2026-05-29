@@ -199,71 +199,111 @@ export const getOrderDetails = async (req, res, next) => {
   }
 };
 
+const applyOrderFilters = (query, filters, exclude = []) => {
+  if (filters.status && !exclude.includes("status")) {
+    query = query.eq("status", filters.status);
+  }
+
+  if (filters.store_id && !exclude.includes("store_id")) {
+    query = query.eq("store_id", filters.store_id);
+  }
+
+  if (filters.customer_name && !exclude.includes("customer_name")) {
+    query = query.ilike("customer_name", `%${filters.customer_name}%`);
+  }
+
+  if (filters.from_date && !exclude.includes("from_date")) {
+    const fromDate = new Date(filters.from_date);
+
+    fromDate.setHours(0, 0, 0, 0);
+
+    query = query.gte("created_at", fromDate.toISOString());
+  }
+
+  if (filters.to_date && !exclude.includes("to_date")) {
+    const toDate = new Date(filters.to_date);
+
+    toDate.setHours(23, 59, 59, 999);
+
+    query = query.lte("created_at", toDate.toISOString());
+  }
+
+  return query;
+};
+
 export const getAllOrders = async (req, res, next) => {
   try {
     const filters = req.query;
 
-    let query = supabase.from("orders").select(`
-    *,
-    store_name:store_identifiers (
-      user:users (
-        username
-      )
-    )
-  `);
+    // -------------------------
+    // ORDERS QUERY
+    // -------------------------
+    let ordersQuery = supabase.from("orders").select(`
+        *,
+        store_name:store_identifiers (
+          user:users (
+            username
+          )
+        )
+      `);
 
-    // ✅ Apply filters dynamically
-    if (filters.status) {
-      query = query.eq("status", filters.status);
-    }
-
-    if (filters.store_id) {
-      query = query.eq("store_id", filters.store_id);
-    }
-
-    if (filters.customer_name) {
-      query = query.ilike("customer_name", `%${filters.customer_name}%`);
-    }
-
-    if (filters.from_date) {
-      const fromDate = new Date(filters.from_date);
-      fromDate.setHours(0, 0, 0, 0);
-
-      query = query.gte("created_at", fromDate.toISOString());
-    }
-
-    if (filters.to_date) {
-      const toDate = new Date(filters.to_date);
-      toDate.setHours(23, 59, 59, 999);
-
-      query = query.lte("created_at", toDate.toISOString());
-    }
-
-    // Pagination
+    ordersQuery = applyOrderFilters(ordersQuery, filters);
 
     const limit = filters.limit ? parseInt(filters.limit) : 10;
+
     const offset = filters.offset ? parseInt(filters.offset) : 0;
 
-    query = query.range(offset, offset + limit - 1);
+    ordersQuery = ordersQuery
+      .range(offset, offset + limit - 1)
+      .order("created_at", {
+        ascending: false,
+      });
 
-    query = query.order("created_at", { ascending: false });
+    // -------------------------
+    // STATUS COUNT QUERY
+    // -------------------------
+    let statusQuery = supabase.from("orders").select("status");
 
-    const { data, error } = await query.order("created_at", {
-      ascending: false,
-    });
+    // Exclude status filter
+    statusQuery = applyOrderFilters(statusQuery, filters, ["status"]);
 
-    if (error) throw error;
+    const [
+      { data: orders, error: ordersError },
+      { data: statuses, error: statusError },
+    ] = await Promise.all([ordersQuery, statusQuery]);
+
+    if (ordersError) throw ordersError;
+    if (statusError) throw statusError;
+
+    // -------------------------
+    // STATUS COUNTS
+    // -------------------------
+    const initialStatuses = {
+      pending: 0,
+      paid: 0,
+      preparing: 0,
+      ready: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+
+    const statusCounts = statuses.reduce((acc, item) => {
+      if (acc[item.status] !== undefined) {
+        acc[item.status] += 1;
+      }
+
+      return acc;
+    }, initialStatuses);
 
     res.status(200).json({
       success: true,
-      count: data.length,
-      data,
+      orders,
+      statusCounts,
     });
   } catch (error) {
     next(error);
   }
 };
-
 export const getTotalStatusCounts = async (req, res, next) => {
   try {
     const filters = req.query;
